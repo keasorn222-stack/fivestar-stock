@@ -1,0 +1,773 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>FiveStar Stock Control</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;600;700&display=swap" rel="stylesheet" />
+<style>
+  /* ===== RESET & BASE ===== */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Noto Sans Thai', sans-serif;
+    background: #0f1117;
+    color: #e2e8f0;
+    min-height: 100vh;
+    font-size: 14px;
+  }
+  button { cursor: pointer; font-family: inherit; }
+  input, select, textarea { font-family: inherit; }
+  table { border-collapse: collapse; width: 100%; }
+
+  /* ===== LAYOUT ===== */
+  .header {
+    background: linear-gradient(135deg, #1a1f2e 0%, #16202e 100%);
+    border-bottom: 1px solid #2d3748;
+    position: sticky; top: 0; z-index: 100;
+  }
+  .header-inner {
+    max-width: 1200px; margin: 0 auto;
+    padding: 14px 20px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .logo { display: flex; align-items: center; gap: 12px; }
+  .logo-icon {
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    border-radius: 12px; padding: 8px 12px; font-size: 22px;
+  }
+  .logo-title { font-weight: 700; font-size: 18px; color: #f59e0b; letter-spacing: 1px; }
+  .logo-sub { font-size: 11px; color: #64748b; }
+  .header-right { display: flex; align-items: center; gap: 10px; }
+  .date-label { font-size: 12px; color: #64748b; }
+
+  /* sync status */
+  .sync-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: #10b981; display: inline-block;
+    animation: pulse 2s infinite;
+  }
+  .sync-dot.error { background: #ef4444; animation: none; }
+  .sync-dot.loading { background: #f59e0b; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+  /* ===== TABS ===== */
+  .tabs {
+    max-width: 1200px; margin: 0 auto;
+    padding: 0 20px;
+    display: flex; gap: 2px; overflow-x: auto;
+  }
+  .tab-btn {
+    padding: 10px 16px; font-size: 13px; font-weight: 400;
+    color: #94a3b8; background: none; border: none;
+    border-bottom: 2px solid transparent;
+    white-space: nowrap; transition: all .2s;
+  }
+  .tab-btn.active { color: #f59e0b; font-weight: 700; border-bottom-color: #f59e0b; }
+
+  /* ===== CONTENT ===== */
+  .content { max-width: 1200px; margin: 0 auto; padding: 24px 20px; }
+
+  /* ===== CARDS ===== */
+  .kpi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+  @media(min-width:700px){ .kpi-grid { grid-template-columns: repeat(4,1fr); } }
+  .kpi-card {
+    border-radius: 16px; padding: 20px 24px;
+    border: 1px solid transparent;
+  }
+  .kpi-label { font-size: 11px; color: #94a3b8; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 10px; }
+  .kpi-value { font-size: 26px; font-weight: 700; line-height: 1; }
+  .kpi-sub { font-size: 12px; color: #64748b; margin-top: 6px; }
+
+  /* ===== TABLE ===== */
+  .card {
+    background: #1a1f2e; border: 1px solid #2d3748;
+    border-radius: 16px; overflow: hidden; margin-bottom: 24px;
+  }
+  .card-header {
+    padding: 16px 20px; border-bottom: 1px solid #2d3748;
+    display: flex; align-items: center; justify-content: space-between;
+    font-weight: 700; color: #f59e0b;
+  }
+  .tbl { width: 100%; font-size: 13px; }
+  .tbl thead tr { background: #0f1117; }
+  .tbl th { padding: 10px 16px; color: #64748b; font-weight: 600; text-align: left; white-space: nowrap; }
+  .tbl th.r { text-align: right; }
+  .tbl td { padding: 10px 16px; border-top: 1px solid #2d3748; }
+  .tbl td.r { text-align: right; }
+  .tbl tbody tr:nth-child(even) { background: #ffffff05; }
+
+  /* ===== FORM ===== */
+  .form-grid { display: grid; gap: 14px; }
+  .form-grid-2 { grid-template-columns: 1fr 1fr; }
+  .form-grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+  @media(max-width:600px){ .form-grid-2,.form-grid-3 { grid-template-columns:1fr; } }
+  .lbl { display: block; font-size: 11px; color: #94a3b8; font-weight: 600; margin-bottom: 5px; }
+  .inp {
+    width: 100%; background: #0f1117; border: 1px solid #374151;
+    border-radius: 8px; padding: 9px 12px; color: #e2e8f0; font-size: 13px;
+    transition: border-color .2s; outline: none;
+  }
+  .inp:focus { border-color: #f59e0b; }
+  textarea.inp { resize: vertical; font-family: monospace; font-size: 11px; }
+
+  /* ===== BUTTONS ===== */
+  .btn { border: none; border-radius: 10px; padding: 10px 20px; font-size: 13px; font-weight: 700; transition: all .2s; }
+  .btn:active { transform: scale(.97); }
+  .btn-primary { background: #f59e0b; color: #000; }
+  .btn-primary:hover { background: #fbbf24; }
+  .btn-danger { background: #ef4444; color: #fff; }
+  .btn-danger:hover { background: #f87171; }
+  .btn-ghost { background: none; border: 1px solid #4b5563; color: #9ca3af; }
+  .btn-ghost:hover { border-color: #f59e0b; color: #f59e0b; }
+  .btn-reset {
+    background: #3f1d1d; border: 1px solid #ef444440;
+    color: #fca5a5; border-radius: 8px;
+    padding: 7px 14px; font-size: 12px; font-weight: 600;
+  }
+
+  /* ===== BADGES ===== */
+  .badge { border-radius: 6px; padding: 3px 8px; font-size: 11px; font-weight: 600; }
+  .badge-ok { background: #10b98120; color: #6ee7b7; }
+  .badge-low { background: #ef444420; color: #fca5a5; }
+
+  /* ===== ALERT ===== */
+  .alert-low {
+    background: #3f1d1d; border: 1px solid #ef444440;
+    border-radius: 12px; padding: 16px 20px; margin-bottom: 20px;
+  }
+  .alert-title { font-weight: 700; color: #ef4444; margin-bottom: 8px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip {
+    background: #ef444420; border: 1px solid #ef444440;
+    border-radius: 6px; padding: 4px 10px; font-size: 12px; color: #fca5a5;
+  }
+
+  /* ===== MODAL ===== */
+  .modal-bg {
+    position: fixed; inset: 0; background: #000c;
+    display: flex; align-items: center; justify-content: center;
+    z-index: 9999;
+  }
+  .modal {
+    background: #1a1f2e; border: 1px solid #ef444440;
+    border-radius: 20px; padding: 32px; max-width: 380px; width: 90%; text-align: center;
+  }
+  .modal-icon { font-size: 44px; margin-bottom: 12px; }
+  .modal-title { font-weight: 700; font-size: 18px; color: #f1f5f9; margin-bottom: 8px; }
+  .modal-body { font-size: 13px; color: #94a3b8; margin-bottom: 24px; line-height: 1.7; }
+  .modal-btns { display: flex; gap: 10px; justify-content: center; }
+
+  /* ===== MOVEMENT CARD ===== */
+  .mv-card {
+    background: #0f1117; border-radius: 10px;
+    padding: 12px 16px; margin-bottom: 8px;
+    display: flex; justify-content: space-between; align-items: flex-start;
+  }
+  .mv-name { font-weight: 600; color: #e2e8f0; font-size: 14px; }
+  .mv-sub { font-size: 12px; color: #64748b; margin-top: 2px; }
+
+  /* ===== LOADING ===== */
+  .loading-overlay {
+    position: fixed; inset: 0; background: #0f1117cc;
+    display: flex; align-items: center; justify-content: center;
+    z-index: 9998; flex-direction: column; gap: 14px;
+  }
+  .spinner {
+    width: 40px; height: 40px;
+    border: 4px solid #2d3748; border-top-color: #f59e0b;
+    border-radius: 50%; animation: spin .8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ===== SETUP SCREEN ===== */
+  .setup-screen {
+    min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    flex-direction: column; gap: 20px; padding: 30px;
+  }
+  .setup-card {
+    background: #1a1f2e; border: 1px solid #2d3748;
+    border-radius: 20px; padding: 32px; max-width: 480px; width: 100%;
+  }
+
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  @media(max-width:700px){ .two-col { grid-template-columns:1fr; } }
+
+  .scroll-list { max-height: 480px; overflow-y: auto; }
+
+  .sum-row { border-top: 2px solid #f59e0b30; background: #f59e0b08; font-weight: 700; }
+</style>
+</head>
+<body>
+
+<!-- SETUP SCREEN (ถ้ายังไม่มี API URL) -->
+<div id="setupScreen" class="setup-screen" style="display:none;">
+  <div style="text-align:center;">
+    <div style="font-size:48px;margin-bottom:10px;">🐔</div>
+    <div style="font-size:22px;font-weight:700;color:#f59e0b;">FiveStar Stock Control</div>
+    <div style="color:#64748b;margin-top:4px;">กรุณาตั้งค่า Google Apps Script URL</div>
+  </div>
+  <div class="setup-card">
+    <div class="lbl" style="font-size:13px;color:#e2e8f0;margin-bottom:12px;">📋 ขั้นตอนการตั้งค่า:</div>
+    <ol style="color:#94a3b8;font-size:13px;line-height:2;padding-left:18px;margin-bottom:20px;">
+      <li>เปิด Google Sheet → Extensions → Apps Script</li>
+      <li>วางโค้ดจากไฟล์ <b style="color:#f59e0b;">Code.gs</b> แล้วบันทึก</li>
+      <li>กด Deploy → New deployment → Web app</li>
+      <li>ตั้ง "Who has access" เป็น <b style="color:#f59e0b;">Anyone</b></li>
+      <li>Copy URL ที่ได้มาวางด้านล่าง</li>
+    </ol>
+    <label class="lbl">Google Apps Script Web App URL</label>
+    <input id="apiUrlInput" class="inp" placeholder="https://script.google.com/macros/s/XXXX/exec" style="margin-bottom:12px;" />
+    <button class="btn btn-primary" style="width:100%;" onclick="saveApiUrl()">✅ บันทึกและเชื่อมต่อ</button>
+  </div>
+</div>
+
+<!-- LOADING -->
+<div id="loadingOverlay" class="loading-overlay" style="display:none;">
+  <div class="spinner"></div>
+  <div style="color:#94a3b8;font-size:14px;" id="loadingText">กำลังโหลดข้อมูล...</div>
+</div>
+
+<!-- RESET MODAL -->
+<div id="resetModal" class="modal-bg" style="display:none;">
+  <div class="modal">
+    <div class="modal-icon">⚠️</div>
+    <div class="modal-title">ยืนยันล้างข้อมูลทั้งหมด?</div>
+    <div class="modal-body">
+      ข้อมูลยอดขาย, การรับเข้า, จ่ายออก<br/>และสต็อกคงเหลือจะถูกรีเซ็ตเป็น 0<br/>
+      <span style="color:#ef4444;font-weight:600;">ไม่สามารถย้อนกลับได้</span>
+    </div>
+    <div class="modal-btns">
+      <button class="btn btn-ghost" onclick="closeReset()">ยกเลิก</button>
+      <button class="btn btn-danger" onclick="confirmReset()">ล้างข้อมูลทั้งหมด</button>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="app" style="display:none;">
+
+  <!-- HEADER -->
+  <header class="header">
+    <div class="header-inner">
+      <div class="logo">
+        <div class="logo-icon">🐔</div>
+        <div>
+          <div class="logo-title">FiveStar Stock</div>
+          <div class="logo-sub">ระบบควบคุมสต็อก • CPF Restaurant</div>
+        </div>
+      </div>
+      <div class="header-right">
+        <span class="sync-dot" id="syncDot" title="สถานะการเชื่อมต่อ"></span>
+        <span class="date-label" id="dateLabel"></span>
+        <button class="btn-reset" onclick="showReset()">🗑️ ล้างข้อมูล</button>
+      </div>
+    </div>
+    <div class="tabs" id="tabBar"></div>
+  </header>
+
+  <div class="content" id="mainContent"></div>
+</div>
+
+<script>
+// ============================================================
+// CONFIG
+// ============================================================
+const TABS = ["📊 ภาพรวม","📦 สต็อกสินค้า","🛒 รับสินค้าเข้า","💸 จ่ายออก","📈 รายงานขาย","📁 นำเข้า CSV"];
+let API_URL = localStorage.getItem("fivestar_api_url") || "";
+let activeTab = 0;
+let state = { stock: [], movements: [], sales: [] };
+let nextId = Date.now();
+
+const fmt = n => (Number(n)||0).toLocaleString("th-TH",{minimumFractionDigits:2,maximumFractionDigits:2});
+const todayStr = () => new Date().toISOString().split("T")[0];
+
+// ============================================================
+// INIT
+// ============================================================
+window.onload = () => {
+  document.getElementById("dateLabel").textContent =
+    new Date().toLocaleDateString("th-TH",{year:"numeric",month:"long",day:"numeric"});
+
+  if (!API_URL) {
+    document.getElementById("setupScreen").style.display = "flex";
+  } else {
+    startApp();
+  }
+};
+
+function saveApiUrl() {
+  const url = document.getElementById("apiUrlInput").value.trim();
+  if (!url) return alert("กรุณาใส่ URL ครับ");
+  API_URL = url;
+  localStorage.setItem("fivestar_api_url", url);
+  document.getElementById("setupScreen").style.display = "none";
+  startApp();
+}
+
+async function startApp() {
+  document.getElementById("app").style.display = "block";
+  renderTabs();
+  await loadAll();
+  renderTab();
+}
+
+// ============================================================
+// API
+// ============================================================
+function setSyncStatus(status) {
+  const dot = document.getElementById("syncDot");
+  dot.className = "sync-dot" + (status === "ok" ? "" : status === "error" ? " error" : " loading");
+}
+
+async function apiGet(action) {
+  setSyncStatus("loading");
+  const res = await fetch(`${API_URL}?action=${action}`);
+  const data = await res.json();
+  setSyncStatus(data.error ? "error" : "ok");
+  return data;
+}
+
+async function apiPost(body) {
+  setSyncStatus("loading");
+  const res = await fetch(API_URL, {
+    method: "POST",
+    body: JSON.stringify(body),
+    headers: { "Content-Type": "application/json" }
+  });
+  const data = await res.json();
+  setSyncStatus(data.error ? "error" : "ok");
+  return data;
+}
+
+async function loadAll() {
+  showLoading("กำลังโหลดข้อมูลจาก Google Sheet...");
+  try {
+    const [stock, movements, sales] = await Promise.all([
+      apiGet("getStock"), apiGet("getMovements"), apiGet("getSales")
+    ]);
+    state.stock = Array.isArray(stock) ? stock : [];
+    state.movements = Array.isArray(movements) ? movements : [];
+    state.sales = Array.isArray(sales) ? sales : [];
+  } catch(e) {
+    alert("❌ เชื่อมต่อ Google Sheet ไม่ได้: " + e.message);
+  }
+  hideLoading();
+}
+
+// ============================================================
+// TABS
+// ============================================================
+function renderTabs() {
+  const bar = document.getElementById("tabBar");
+  bar.innerHTML = TABS.map((t,i) =>
+    `<button class="tab-btn${i===activeTab?" active":""}" onclick="switchTab(${i})">${t}</button>`
+  ).join("");
+}
+
+function switchTab(i) {
+  activeTab = i;
+  renderTabs();
+  renderTab();
+}
+
+function renderTab() {
+  const c = document.getElementById("mainContent");
+  if (activeTab === 0) c.innerHTML = renderDashboard();
+  else if (activeTab === 1) c.innerHTML = renderStock();
+  else if (activeTab === 2) c.innerHTML = renderReceive();
+  else if (activeTab === 3) c.innerHTML = renderOut();
+  else if (activeTab === 4) c.innerHTML = renderSalesReport();
+  else if (activeTab === 5) c.innerHTML = renderCSV();
+}
+
+// ============================================================
+// HELPERS
+// ============================================================
+function getDailySales(date) { return state.sales.filter(s => s.date === date); }
+function getAllDates() { return [...new Set(state.sales.map(s => s.date))].sort().reverse(); }
+function sumByDate(date) {
+  const rows = getDailySales(date);
+  return {
+    revenue: rows.reduce((a,r)=>a+r.revenue,0),
+    cost:    rows.reduce((a,r)=>a+r.cost,0),
+    profit:  rows.reduce((a,r)=>a+r.profit,0),
+  };
+}
+function totalSums() {
+  return {
+    revenue: state.sales.reduce((a,r)=>a+r.revenue,0),
+    cost:    state.sales.reduce((a,r)=>a+r.cost,0),
+    profit:  state.sales.reduce((a,r)=>a+r.profit,0),
+  };
+}
+function lowStock() { return state.stock.filter(s => s.qty <= s.minQty); }
+
+// ============================================================
+// TAB 0: DASHBOARD
+// ============================================================
+function renderDashboard() {
+  const dates = getAllDates();
+  const latest = dates[0] || todayStr();
+  const today = sumByDate(latest);
+  const total = totalSums();
+  const low = lowStock();
+
+  const cards = [
+    { label:"ยอดขายรายวัน", value:fmt(today.revenue), unit:"บาท", color:"#3b82f6", bg:"#1e3a5f", icon:"💰", sub:`วันที่ ${latest}` },
+    { label:"ต้นทุนสินค้า",  value:fmt(today.cost),    unit:"บาท", color:"#ef4444", bg:"#3f1d1d", icon:"📦", sub:`${((today.cost/(today.revenue||1))*100).toFixed(1)}% ของยอดขาย` },
+    { label:"กำไรวันนี้",    value:fmt(today.profit),  unit:"บาท", color:"#10b981", bg:"#1a3a2e", icon:"📈", sub:`${((today.profit/(today.revenue||1))*100).toFixed(1)}% margin` },
+    { label:"กำไรสะสม",     value:fmt(total.profit),  unit:"บาท", color:"#f59e0b", bg:"#3d2c0a", icon:"🏆", sub:`จาก ${dates.length} วัน` },
+  ];
+
+  let html = `<div class="kpi-grid">`;
+  cards.forEach(c => {
+    html += `<div class="kpi-card" style="background:${c.bg};border-color:${c.color}30;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <span class="kpi-label">${c.label}</span><span style="font-size:24px;">${c.icon}</span>
+      </div>
+      <div class="kpi-value" style="color:${c.color};">${c.value}</div>
+      <div class="kpi-sub">${c.unit} • ${c.sub}</div>
+    </div>`;
+  });
+  html += `</div>`;
+
+  if (low.length > 0) {
+    html += `<div class="alert-low">
+      <div class="alert-title">⚠️ สินค้าใกล้หมด (${low.length} รายการ)</div>
+      <div class="chips">${low.map(s=>`<span class="chip">${s.name}: ${s.qty} ${s.unit}</span>`).join("")}</div>
+    </div>`;
+  }
+
+  const tot = totalSums();
+  html += `<div class="card">
+    <div class="card-header">📅 สรุปรายวัน
+      <button class="btn btn-ghost" style="font-size:12px;padding:5px 12px;" onclick="loadAll().then(renderTab)">🔄 รีเฟรช</button>
+    </div>
+    <div style="overflow-x:auto;">
+    <table class="tbl"><thead><tr>
+      <th>วันที่</th><th class="r">ยอดขาย (฿)</th><th class="r">ต้นทุน (฿)</th><th class="r">กำไร (฿)</th><th class="r">Margin</th>
+    </tr></thead><tbody>`;
+  dates.forEach((d,i) => {
+    const s = sumByDate(d);
+    html += `<tr>
+      <td style="color:#94a3b8;">${d}</td>
+      <td class="r" style="color:#3b82f6;font-weight:600;">${fmt(s.revenue)}</td>
+      <td class="r" style="color:#ef4444;">${fmt(s.cost)}</td>
+      <td class="r" style="color:#10b981;font-weight:700;">${fmt(s.profit)}</td>
+      <td class="r" style="color:#f59e0b;">${((s.profit/(s.revenue||1))*100).toFixed(1)}%</td>
+    </tr>`;
+  });
+  html += `<tr class="sum-row">
+    <td style="color:#f59e0b;">รวม</td>
+    <td class="r" style="color:#3b82f6;">${fmt(tot.revenue)}</td>
+    <td class="r" style="color:#ef4444;">${fmt(tot.cost)}</td>
+    <td class="r" style="color:#10b981;">${fmt(tot.profit)}</td>
+    <td class="r" style="color:#f59e0b;">${((tot.profit/(tot.revenue||1))*100).toFixed(1)}%</td>
+  </tr></tbody></table></div></div>`;
+  return html;
+}
+
+// ============================================================
+// TAB 1: STOCK
+// ============================================================
+function renderStock() {
+  let html = `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+    <h2 style="font-weight:700;font-size:18px;color:#f59e0b;">📦 สต็อกสินค้าคงเหลือ</h2>
+    <button class="btn btn-primary" onclick="showAddProduct()">+ เพิ่มสินค้า</button>
+  </div>
+  <div id="addProductForm" style="display:none;" class="card" style="padding:24px;margin-bottom:20px;">
+    <div style="padding:20px;">
+      <div style="font-weight:700;color:#f59e0b;margin-bottom:16px;">เพิ่มสินค้าใหม่</div>
+      <div class="form-grid form-grid-3" style="margin-bottom:12px;">
+        <div><label class="lbl">รหัส</label><input class="inp" id="np_code" /></div>
+        <div><label class="lbl">ชื่อสินค้า</label><input class="inp" id="np_name" /></div>
+        <div><label class="lbl">หน่วย</label><input class="inp" id="np_unit" value="ชิ้น" /></div>
+      </div>
+      <div class="form-grid form-grid-3" style="margin-bottom:16px;">
+        <div><label class="lbl">จำนวนเริ่มต้น</label><input class="inp" id="np_qty" type="number" value="0" /></div>
+        <div><label class="lbl">ต้นทุน/หน่วย (฿)</label><input class="inp" id="np_cost" type="number" value="0" /></div>
+        <div><label class="lbl">แจ้งเตือนเมื่อเหลือ</label><input class="inp" id="np_min" type="number" value="5" /></div>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-primary" onclick="saveNewProduct()">บันทึก</button>
+        <button class="btn btn-ghost" onclick="hideAddProduct()">ยกเลิก</button>
+      </div>
+    </div>
+  </div>
+  <div class="card"><div style="overflow-x:auto;">
+  <table class="tbl"><thead><tr>
+    <th>รหัส</th><th>ชื่อสินค้า</th><th class="r">คงเหลือ</th><th>หน่วย</th><th class="r">ต้นทุน/หน่วย</th><th class="r">มูลค่ารวม (฿)</th><th>สถานะ</th>
+  </tr></thead><tbody>`;
+  state.stock.forEach(s => {
+    const low = s.qty <= s.minQty;
+    html += `<tr style="${low?"background:#3f1d1d20;":""}">
+      <td style="color:#64748b;font-size:11px;">${s.code}</td>
+      <td style="color:#e2e8f0;font-weight:500;">${s.name}</td>
+      <td class="r" style="color:${low?"#ef4444":"#10b981"};font-weight:700;font-size:16px;">${(+s.qty).toLocaleString()}</td>
+      <td style="color:#94a3b8;">${s.unit}</td>
+      <td class="r" style="color:#94a3b8;">${fmt(s.costPerUnit)}</td>
+      <td class="r" style="color:#f59e0b;font-weight:600;">${fmt(s.qty*s.costPerUnit)}</td>
+      <td><span class="badge ${low?"badge-low":"badge-ok"}">${low?"⚠️ ใกล้หมด":"✅ ปกติ"}</span></td>
+    </tr>`;
+  });
+  html += `</tbody></table></div></div>`;
+  return html;
+}
+
+function showAddProduct() { document.getElementById("addProductForm").style.display="block"; }
+function hideAddProduct() { document.getElementById("addProductForm").style.display="none"; }
+async function saveNewProduct() {
+  const p = {
+    id: nextId++,
+    code: document.getElementById("np_code").value,
+    name: document.getElementById("np_name").value,
+    unit: document.getElementById("np_unit").value,
+    qty: parseFloat(document.getElementById("np_qty").value)||0,
+    costPerUnit: parseFloat(document.getElementById("np_cost").value)||0,
+    minQty: parseFloat(document.getElementById("np_min").value)||5,
+  };
+  if (!p.name) return alert("กรุณาใส่ชื่อสินค้า");
+  showLoading("กำลังบันทึก...");
+  state.stock.push(p);
+  await apiPost({ action:"saveStock", data: state.stock });
+  hideLoading();
+  renderTab();
+}
+
+// ============================================================
+// TAB 2: RECEIVE
+// ============================================================
+function renderReceive() {
+  const opts = state.stock.map(s => `<option value="${s.id}">${s.name} (คงเหลือ: ${s.qty} ${s.unit})</option>`).join("");
+  const mvs = state.movements.filter(m=>m.type==="in").slice().reverse();
+  return `<div class="two-col">
+  <div class="card"><div style="padding:24px;">
+    <h3 style="font-weight:700;color:#f59e0b;margin-bottom:20px;">🛒 บันทึกรับสินค้าเข้า</h3>
+    <div class="form-grid">
+      <div><label class="lbl">วันที่รับ</label><input class="inp" id="in_date" type="date" value="${todayStr()}" /></div>
+      <div><label class="lbl">สินค้า</label><select class="inp" id="in_pid"><option value="">-- เลือกสินค้า --</option>${opts}</select></div>
+      <div><label class="lbl">จำนวน</label><input class="inp" id="in_qty" type="number" placeholder="0" /></div>
+      <div><label class="lbl">ต้นทุนรวม (฿) — เว้นว่างเพื่อคำนวณอัตโนมัติ</label><input class="inp" id="in_cost" type="number" placeholder="0.00" /></div>
+      <div><label class="lbl">หมายเหตุ / เลขใบส่งสินค้า</label><input class="inp" id="in_note" placeholder="เช่น: ใบส่งสินค้า #xxx" /></div>
+      <button class="btn btn-primary" onclick="doReceive()">✅ บันทึกรับเข้า</button>
+    </div>
+  </div></div>
+  <div class="card"><div style="padding:24px;">
+    <h3 style="font-weight:700;color:#3b82f6;margin-bottom:16px;">📋 ประวัติรับสินค้า</h3>
+    <div class="scroll-list">${mvs.length===0?`<div style="color:#64748b;text-align:center;padding:40px;">ยังไม่มีรายการ</div>`:
+      mvs.map(m => {
+        const p = state.stock.find(s=>s.id==m.productId);
+        return `<div class="mv-card" style="border:1px solid #1e3a5f;">
+          <div><div class="mv-name">${p?.name||"?"}</div><div class="mv-sub">${m.date} • ${m.note||"—"}</div></div>
+          <div style="text-align:right;"><div style="color:#3b82f6;font-weight:700;">+${m.qty} ${p?.unit||""}</div><div style="font-size:12px;color:#64748b;">฿${fmt(m.cost)}</div></div>
+        </div>`;
+      }).join("")}
+    </div>
+  </div></div>
+  </div>`;
+}
+
+async function doReceive() {
+  const pid = parseInt(document.getElementById("in_pid").value);
+  const qty = parseFloat(document.getElementById("in_qty").value);
+  const cost = parseFloat(document.getElementById("in_cost").value);
+  const date = document.getElementById("in_date").value;
+  const note = document.getElementById("in_note").value;
+  if (!pid || !qty) return alert("กรุณาเลือกสินค้าและใส่จำนวน");
+  const product = state.stock.find(s=>s.id===pid);
+  const finalCost = cost || qty * product.costPerUnit;
+  showLoading("กำลังบันทึก...");
+  const mv = { id: nextId++, date, type:"in", productId:pid, qty, note, cost:finalCost };
+  state.movements.push(mv);
+  state.stock = state.stock.map(s => s.id===pid ? {...s, qty: s.qty+qty} : s);
+  await Promise.all([
+    apiPost({ action:"addMovement", data: mv }),
+    apiPost({ action:"saveStock", data: state.stock })
+  ]);
+  hideLoading();
+  renderTab();
+}
+
+// ============================================================
+// TAB 3: OUT
+// ============================================================
+function renderOut() {
+  const opts = state.stock.map(s => `<option value="${s.id}">${s.name} (คงเหลือ: ${s.qty} ${s.unit})</option>`).join("");
+  const mvs = state.movements.filter(m=>m.type==="out").slice().reverse();
+  return `<div class="two-col">
+  <div class="card"><div style="padding:24px;">
+    <h3 style="font-weight:700;color:#ef4444;margin-bottom:20px;">💸 บันทึกจ่ายสินค้าออก</h3>
+    <div class="form-grid">
+      <div><label class="lbl">วันที่</label><input class="inp" id="out_date" type="date" value="${todayStr()}" /></div>
+      <div><label class="lbl">สินค้า</label><select class="inp" id="out_pid"><option value="">-- เลือกสินค้า --</option>${opts}</select></div>
+      <div><label class="lbl">จำนวน</label><input class="inp" id="out_qty" type="number" placeholder="0" /></div>
+      <div><label class="lbl">หมายเหตุ</label><input class="inp" id="out_note" placeholder="เช่น: เบิกใช้งาน, เสีย, สูญหาย" /></div>
+      <button class="btn btn-danger" onclick="doOut()">📤 บันทึกจ่ายออก</button>
+    </div>
+  </div></div>
+  <div class="card"><div style="padding:24px;">
+    <h3 style="font-weight:700;color:#ef4444;margin-bottom:16px;">📋 ประวัติจ่ายออก</h3>
+    <div class="scroll-list">${mvs.length===0?`<div style="color:#64748b;text-align:center;padding:40px;">ยังไม่มีรายการจ่ายออก</div>`:
+      mvs.map(m => {
+        const p = state.stock.find(s=>s.id==m.productId);
+        return `<div class="mv-card" style="border:1px solid #3f1d1d;">
+          <div><div class="mv-name">${p?.name||"?"}</div><div class="mv-sub">${m.date} • ${m.note||"—"}</div></div>
+          <div style="text-align:right;"><div style="color:#ef4444;font-weight:700;">-${m.qty} ${p?.unit||""}</div><div style="font-size:12px;color:#64748b;">฿${fmt(m.cost)}</div></div>
+        </div>`;
+      }).join("")}
+    </div>
+  </div></div>
+  </div>`;
+}
+
+async function doOut() {
+  const pid = parseInt(document.getElementById("out_pid").value);
+  const qty = parseFloat(document.getElementById("out_qty").value);
+  const date = document.getElementById("out_date").value;
+  const note = document.getElementById("out_note").value;
+  if (!pid || !qty) return alert("กรุณาเลือกสินค้าและใส่จำนวน");
+  const product = state.stock.find(s=>s.id===pid);
+  showLoading("กำลังบันทึก...");
+  const mv = { id: nextId++, date, type:"out", productId:pid, qty, note, cost: qty*product.costPerUnit };
+  state.movements.push(mv);
+  state.stock = state.stock.map(s => s.id===pid ? {...s, qty: Math.max(0,s.qty-qty)} : s);
+  await Promise.all([
+    apiPost({ action:"addMovement", data: mv }),
+    apiPost({ action:"saveStock", data: state.stock })
+  ]);
+  hideLoading();
+  renderTab();
+}
+
+// ============================================================
+// TAB 4: SALES REPORT
+// ============================================================
+function renderSalesReport() {
+  const dates = getAllDates();
+  if (dates.length === 0) return `<div style="color:#64748b;text-align:center;padding:60px;">ยังไม่มีข้อมูลยอดขาย</div>`;
+  let html = `<h2 style="font-weight:700;font-size:18px;color:#f59e0b;margin-bottom:20px;">📈 รายงานยอดขายรายสินค้า</h2>`;
+  dates.forEach(date => {
+    const rows = getDailySales(date);
+    const s = sumByDate(date);
+    html += `<div class="card" style="margin-bottom:24px;">
+      <div class="card-header">
+        📅 ${date}
+        <div style="display:flex;gap:16px;font-size:13px;font-weight:400;">
+          <span style="color:#3b82f6;">ขาย: ฿${fmt(s.revenue)}</span>
+          <span style="color:#ef4444;">ต้นทุน: ฿${fmt(s.cost)}</span>
+          <span style="color:#10b981;font-weight:700;">กำไร: ฿${fmt(s.profit)}</span>
+        </div>
+      </div>
+      <div style="overflow-x:auto;"><table class="tbl"><thead><tr>
+        <th>สินค้า</th><th class="r">SKU</th><th class="r">จำนวน</th>
+        <th class="r">ยอดขาย (฿)</th><th class="r">ต้นทุน (฿)</th><th class="r">กำไร (฿)</th><th class="r">%กำไร</th>
+      </tr></thead><tbody>`;
+    rows.forEach(r => {
+      html += `<tr>
+        <td style="color:#e2e8f0;">${r.name}</td>
+        <td class="r" style="color:#64748b;">${r.sku}</td>
+        <td class="r" style="color:#94a3b8;">${r.qty}</td>
+        <td class="r" style="color:#3b82f6;font-weight:600;">${fmt(r.revenue)}</td>
+        <td class="r" style="color:#ef4444;">${fmt(r.cost)}</td>
+        <td class="r" style="color:#10b981;font-weight:600;">${fmt(r.profit)}</td>
+        <td class="r" style="color:#f59e0b;">${((r.profit/(r.revenue||1))*100).toFixed(1)}%</td>
+      </tr>`;
+    });
+    html += `</tbody></table></div></div>`;
+  });
+  return html;
+}
+
+// ============================================================
+// TAB 5: CSV IMPORT
+// ============================================================
+function renderCSV() {
+  const dates = getAllDates();
+  return `<div>
+  <h2 style="font-weight:700;font-size:18px;color:#f59e0b;margin-bottom:20px;">📁 นำเข้าข้อมูลขายจาก Loyverse POS</h2>
+  <div class="card" style="margin-bottom:20px;"><div style="padding:24px;">
+    <div class="form-grid">
+      <div><label class="lbl">วันที่ของข้อมูล (จะแทนที่ข้อมูลเดิมของวันนั้น)</label>
+        <input class="inp" id="csv_date" type="date" value="${todayStr()}" /></div>
+      <div><label class="lbl">วางข้อมูล CSV จาก Loyverse POS ที่นี่</label>
+        <textarea class="inp" id="csv_text" rows="12"
+          placeholder="รายการ,รหัสSKUสินค้า,ประเภท,สินค้าที่ขาย,ยอดขายรวม,..."></textarea></div>
+      <div style="background:#0f1117;border-radius:10px;padding:14px;font-size:12px;color:#64748b;">
+        📌 คอลัมน์ที่รองรับ: รายการ, รหัสSKU, ประเภท, จำนวนขาย, ยอดขายรวม, รับคืน, คืนเงิน, ส่วนลด, ยอดขายสุทธิ,
+        <b style="color:#ef4444;">ต้นทุน</b>, <b style="color:#10b981;">กำไรรวม</b>, %กำไร, ภาษี
+      </div>
+      <button class="btn btn-primary" onclick="doCSVImport()">📥 นำเข้าข้อมูล</button>
+    </div>
+  </div></div>
+  <div class="card"><div style="padding:24px;">
+    <h3 style="font-weight:700;color:#f59e0b;margin-bottom:16px;">📊 ข้อมูลที่บันทึกแล้ว (${state.sales.length} รายการ)</h3>
+    ${dates.map(d => {
+      const rows = getDailySales(d);
+      const s = sumByDate(d);
+      return `<div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #2d3748;">
+        <span style="color:#94a3b8;">${d} — ${rows.length} รายการ</span>
+        <span style="color:#10b981;font-weight:600;">กำไร ฿${fmt(s.profit)}</span>
+      </div>`;
+    }).join("") || `<div style="color:#64748b;text-align:center;padding:30px;">ยังไม่มีข้อมูล</div>`}
+  </div></div></div>`;
+}
+
+async function doCSVImport() {
+  const text = document.getElementById("csv_text").value.trim();
+  const date = document.getElementById("csv_date").value;
+  if (!text) return alert("กรุณาวางข้อมูล CSV ก่อนครับ");
+  const lines = text.split("\n");
+  const newRows = [];
+  for (let i = 1; i < lines.length; i++) {
+    const cols = lines[i].split(",");
+    if (cols.length < 10) continue;
+    const name = cols[0]?.trim();
+    if (!name) continue;
+    newRows.push({
+      date, name,
+      sku: parseInt(cols[1])||0,
+      qty: parseFloat(cols[3])||0,
+      revenue: parseFloat(cols[8])||0,
+      cost: parseFloat(cols[9])||0,
+      profit: parseFloat(cols[10])||0,
+    });
+  }
+  if (newRows.length === 0) return alert("ไม่พบข้อมูลในไฟล์ CSV");
+  showLoading(`กำลังบันทึก ${newRows.length} รายการ...`);
+  state.sales = [...state.sales.filter(s => s.date !== date), ...newRows];
+  await apiPost({ action:"saveSales", data: newRows });
+  hideLoading();
+  document.getElementById("csv_text").value = "";
+  alert(`✅ นำเข้าสำเร็จ ${newRows.length} รายการ วันที่ ${date}`);
+  renderTab();
+}
+
+// ============================================================
+// RESET
+// ============================================================
+function showReset() { document.getElementById("resetModal").style.display="flex"; }
+function closeReset() { document.getElementById("resetModal").style.display="none"; }
+async function confirmReset() {
+  closeReset();
+  showLoading("กำลังล้างข้อมูลทั้งหมด...");
+  await apiPost({ action:"resetAll" });
+  state = { stock:[], movements:[], sales:[] };
+  hideLoading();
+  activeTab = 0;
+  renderTabs();
+  renderTab();
+}
+
+// ============================================================
+// LOADING
+// ============================================================
+function showLoading(text="กำลังโหลด...") {
+  document.getElementById("loadingText").textContent = text;
+  document.getElementById("loadingOverlay").style.display="flex";
+}
+function hideLoading() {
+  document.getElementById("loadingOverlay").style.display="none";
+}
+</script>
+</body>
+</html>
